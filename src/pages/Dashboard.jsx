@@ -123,11 +123,11 @@ function Dashboard({
       <main className="main-content">
         <div style={{ marginBottom: "30px" }}>
           <h1 style={{ fontSize: "42px" }}>
-            IBStudyQuest 🚀
+            IPlan 🚀
           </h1>
 
           <p style={{ color: "#9ca3af", marginTop: "10px" }}>
-            A fair, effort-driven system for IB students.
+            The productivity operating system for ambitious students.
           </p>
         </div>
 
