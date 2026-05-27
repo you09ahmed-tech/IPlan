@@ -1,4 +1,11 @@
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase/config";
+
 function Sidebar({ setPage }) {
+  async function handleLogout() {
+    await signOut(auth);
+  }
+
   return (
     <aside className="sidebar">
       <h2>IPlan</h2>
@@ -20,8 +27,20 @@ function Sidebar({ setPage }) {
           Analytics
         </button>
 
+        <button onClick={() => setPage("history")}>
+          Quest History
+        </button>
+
         <button onClick={() => setPage("ai")}>
           AI Assistant
+        </button>
+
+        <button onClick={() => setPage("planner")}>
+          AI Planner
+        </button>
+
+        <button onClick={() => setPage("plans")}>
+          Saved Plans
         </button>
 
         <button onClick={() => setPage("calendar")}>
@@ -38,6 +57,10 @@ function Sidebar({ setPage }) {
 
         <button onClick={() => setPage("reality")}>
           Reality Mode
+        </button>
+
+        <button onClick={handleLogout}>
+          Log Out
         </button>
       </nav>
     </aside>

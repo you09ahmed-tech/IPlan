@@ -6,28 +6,29 @@ import SubjectCard from "../components/SubjectCard";
 import QuestCard from "../components/QuestCard";
 import DailyGoals from "../components/DailyGoals";
 
+import { subjects } from "../data/mockData";
+
 import {
-  subjects,
-  quests as startingQuests,
-} from "../data/mockData";
+  saveQuest,
+  removeQuest,
+} from "../firebase/quests";
+
+import {
+  saveCompletedQuest,
+} from "../firebase/completedQuests";
 
 import "../styles/dashboard.css";
 
 function Dashboard({
+  user,
   setPage,
   xp,
   setXP,
   streak,
   setStreak,
+  quests,
+  setQuests,
 }) {
-  const [quests, setQuests] = useState(() => {
-    const savedQuests = localStorage.getItem("quests");
-
-    return savedQuests
-      ? JSON.parse(savedQuests)
-      : startingQuests;
-  });
-
   const [completedQuests, setCompletedQuests] = useState(() => {
     const savedCompleted = localStorage.getItem("completedQuests");
 
@@ -48,10 +49,6 @@ function Dashboard({
   });
 
   useEffect(() => {
-    localStorage.setItem("quests", JSON.stringify(quests));
-  }, [quests]);
-
-  useEffect(() => {
     localStorage.setItem(
       "completedQuests",
       JSON.stringify(completedQuests)
@@ -66,7 +63,7 @@ function Dashboard({
     return 40;
   }
 
-  function addQuest(event) {
+  async function addQuest(event) {
     event.preventDefault();
 
     if (newQuest.title.trim() === "") return;
@@ -82,9 +79,12 @@ function Dashboard({
       difficulty: newQuest.difficulty,
       xp: getXP(newQuest.difficulty),
       subtasks: subtaskArray,
+      completed: false,
     };
 
-    setQuests([questToAdd, ...quests]);
+    const savedQuest = await saveQuest(user.uid, questToAdd);
+
+    setQuests([savedQuest, ...quests]);
 
     setNewQuest({
       title: "",
@@ -94,22 +94,33 @@ function Dashboard({
     });
   }
 
-  function completeQuest(indexToComplete) {
+  async function completeQuest(indexToComplete) {
     const completedQuest = quests[indexToComplete];
 
     setXP(xp + completedQuest.xp);
+
     setStreak(streak + 1);
+
     setCompletedQuests(completedQuests + 1);
+
+    await saveCompletedQuest(user.uid, {
+      ...completedQuest,
+      completed: true,
+    });
+
+    await removeQuest(user.uid, completedQuest.id);
 
     setQuests(
       quests.filter((_, index) => index !== indexToComplete)
     );
   }
 
-  function deleteQuest(indexToDelete) {
+  async function deleteQuest(indexToDelete) {
     const questToRemove = quests[indexToDelete];
 
-    setXP(xp - questToRemove.xp);
+    if (questToRemove.id) {
+      await removeQuest(user.uid, questToRemove.id);
+    }
 
     setQuests(
       quests.filter((_, index) => index !== indexToDelete)
@@ -208,21 +219,27 @@ function Dashboard({
           <h2 className="section-title">Today's Quests</h2>
 
           <div className="quests-grid">
-            {quests.map((quest, index) => (
-              <div key={index}>
-                <QuestCard
-                  quest={quest}
-                  onComplete={() => completeQuest(index)}
-                />
-
-                <button
-                  className="delete-btn"
-                  onClick={() => deleteQuest(index)}
-                >
-                  Delete
-                </button>
+            {quests.length === 0 ? (
+              <div className="subject-card">
+                <p>No quests yet. Add your first quest above.</p>
               </div>
-            ))}
+            ) : (
+              quests.map((quest, index) => (
+                <div key={quest.id || index}>
+                  <QuestCard
+                    quest={quest}
+                    onComplete={() => completeQuest(index)}
+                  />
+
+                  <button
+                    className="delete-btn"
+                    onClick={() => deleteQuest(index)}
+                  >
+                    Delete
+                  </button>
+                </div>
+              ))
+            )}
           </div>
         </section>
 
