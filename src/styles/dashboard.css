@@ -317,3 +317,47 @@
     display: none;
   }
 }
+.calendar-session-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.delete-session-btn {
+  margin-top: 20px;
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  padding: 12px 18px;
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.delete-session-btn:hover {
+  background: #fecaca;
+}
+
+.calendar-edit-input,
+.calendar-edit-textarea {
+  width: 100%;
+  margin-top: 8px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  color: #0f172a;
+  background: white;
+}
+
+.calendar-edit-textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.calendar-session-card label {
+  display: block;
+  margin-top: 12px;
+  color: #334155;
+  font-weight: 700;
+}

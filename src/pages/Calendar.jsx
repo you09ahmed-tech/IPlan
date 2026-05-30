@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 
 import Sidebar from "../components/Sidebar";
-import { loadStudySessions, updateStudySession } from "../firebase/sessions";
+
+import {
+  loadStudySessions,
+  updateStudySession,
+  deleteStudySession,
+} from "../firebase/sessions";
+
 import { auth } from "../firebase/config";
 
 const weekLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -12,6 +18,15 @@ function Calendar({ setPage }) {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState("month");
   const [currentDate, setCurrentDate] = useState(new Date());
+
+  const [editingSessionId, setEditingSessionId] = useState(null);
+  const [editForm, setEditForm] = useState({
+    date: "",
+    time: "",
+    duration: "",
+    focus: "",
+    tasks: "",
+  });
 
   useEffect(() => {
     async function fetchSessions() {
@@ -37,8 +52,6 @@ function Calendar({ setPage }) {
     const month = currentDate.getMonth();
 
     const firstOfMonth = new Date(year, month, 1);
-    const lastOfMonth = new Date(year, month + 1, 0);
-
     const startOffset = (firstOfMonth.getDay() + 6) % 7;
     const gridStart = new Date(firstOfMonth);
 
@@ -161,6 +174,69 @@ function Calendar({ setPage }) {
     });
   }
 
+  function startEditing(session) {
+    setEditingSessionId(session.id);
+
+    setEditForm({
+      date: session.date || "",
+      time: session.time || "16:00",
+      duration: session.duration || "45 minutes",
+      focus: session.focus || "",
+      tasks: session.tasks ? session.tasks.join(", ") : "",
+    });
+  }
+
+  function cancelEditing() {
+    setEditingSessionId(null);
+
+    setEditForm({
+      date: "",
+      time: "",
+      duration: "",
+      focus: "",
+      tasks: "",
+    });
+  }
+
+  async function saveEditedSession(session) {
+    const updatedSession = {
+      date: editForm.date,
+      time: editForm.time,
+      duration: editForm.duration,
+      focus: editForm.focus,
+      tasks: editForm.tasks
+        .split(",")
+        .map((task) => task.trim())
+        .filter((task) => task !== ""),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await updateStudySession(auth.currentUser.uid, session.id, updatedSession);
+
+    const updatedSessions = sessions.map((currentSession) =>
+      currentSession.id === session.id
+        ? {
+            ...currentSession,
+            ...updatedSession,
+          }
+        : currentSession
+    );
+
+    setSessions(updatedSessions);
+
+    if (selectedDate) {
+      setSelectedDate({
+        ...selectedDate,
+        sessions: updatedSessions.filter(
+          (updatedSessionItem) =>
+            updatedSessionItem.date === selectedDate.dateKey
+        ),
+      });
+    }
+
+    cancelEditing();
+  }
+
   async function completeSession(session) {
     await updateStudySession(auth.currentUser.uid, session.id, {
       status: "completed",
@@ -175,6 +251,31 @@ function Calendar({ setPage }) {
             completedAt: new Date().toISOString(),
           }
         : currentSession
+    );
+
+    setSessions(updatedSessions);
+
+    if (selectedDate) {
+      setSelectedDate({
+        ...selectedDate,
+        sessions: updatedSessions.filter(
+          (updatedSession) => updatedSession.date === selectedDate.dateKey
+        ),
+      });
+    }
+  }
+
+  async function deleteSession(session) {
+    const confirmDelete = window.confirm(
+      "Are you sure you want to delete this session?"
+    );
+
+    if (!confirmDelete) return;
+
+    await deleteStudySession(auth.currentUser.uid, session.id);
+
+    const updatedSessions = sessions.filter(
+      (currentSession) => currentSession.id !== session.id
     );
 
     setSessions(updatedSessions);
@@ -355,41 +456,144 @@ function Calendar({ setPage }) {
                 <div className="calendar-modal-list">
                   {selectedDate.sessions.map((session) => (
                     <div className="calendar-session-card" key={session.id}>
-                      <div>
-                        <h3>{session.title}</h3>
-                        <p>{session.goal}</p>
-                        <p>
-                          {session.time} • {session.duration}
-                        </p>
-                      </div>
+                      {editingSessionId === session.id ? (
+                        <>
+                          <h3>Edit Session</h3>
 
-                      <span
-                        className={
-                          session.status === "completed"
-                            ? "status-pill completed"
-                            : "status-pill planned"
-                        }
-                      >
-                        {session.status === "completed"
-                          ? "Completed"
-                          : "Planned"}
-                      </span>
+                          <label>Date</label>
+                          <input
+                            type="date"
+                            value={editForm.date}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                date: event.target.value,
+                              })
+                            }
+                            className="calendar-edit-input"
+                          />
 
-                      <h4>What to do</h4>
+                          <label>Time</label>
+                          <input
+                            type="time"
+                            value={editForm.time}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                time: event.target.value,
+                              })
+                            }
+                            className="calendar-edit-input"
+                          />
 
-                      <ul>
-                        {session.tasks.map((task, index) => (
-                          <li key={index}>{task}</li>
-                        ))}
-                      </ul>
+                          <label>Duration</label>
+                          <input
+                            type="text"
+                            value={editForm.duration}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                duration: event.target.value,
+                              })
+                            }
+                            className="calendar-edit-input"
+                          />
 
-                      {session.status !== "completed" && (
-                        <button
-                          className="complete-session-btn"
-                          onClick={() => completeSession(session)}
-                        >
-                          ✓ Mark as Completed
-                        </button>
+                          <label>Focus</label>
+                          <textarea
+                            value={editForm.focus}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                focus: event.target.value,
+                              })
+                            }
+                            className="calendar-edit-textarea"
+                          />
+
+                          <label>Tasks separated by commas</label>
+                          <textarea
+                            value={editForm.tasks}
+                            onChange={(event) =>
+                              setEditForm({
+                                ...editForm,
+                                tasks: event.target.value,
+                              })
+                            }
+                            className="calendar-edit-textarea"
+                          />
+
+                          <div className="calendar-session-actions">
+                            <button
+                              className="complete-session-btn"
+                              onClick={() => saveEditedSession(session)}
+                            >
+                              Save Changes
+                            </button>
+
+                            <button
+                              className="delete-session-btn"
+                              onClick={cancelEditing}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <h3>{session.title}</h3>
+                            <p>{session.goal}</p>
+                            <p>
+                              {session.time} • {session.duration}
+                            </p>
+                          </div>
+
+                          <span
+                            className={
+                              session.status === "completed"
+                                ? "status-pill completed"
+                                : "status-pill planned"
+                            }
+                          >
+                            {session.status === "completed"
+                              ? "Completed"
+                              : "Planned"}
+                          </span>
+
+                          <h4>What to do</h4>
+
+                          <ul>
+                            {session.tasks.map((task, index) => (
+                              <li key={index}>{task}</li>
+                            ))}
+                          </ul>
+
+                          <div className="calendar-session-actions">
+                            {session.status !== "completed" && (
+                              <button
+                                className="complete-session-btn"
+                                onClick={() => completeSession(session)}
+                              >
+                                ✓ Mark as Completed
+                              </button>
+                            )}
+
+                            <button
+                              className="complete-session-btn"
+                              onClick={() => startEditing(session)}
+                            >
+                              Edit Session
+                            </button>
+
+                            <button
+                              className="delete-session-btn"
+                              onClick={() => deleteSession(session)}
+                            >
+                              Delete Session
+                            </button>
+                          </div>
+                        </>
                       )}
                     </div>
                   ))}

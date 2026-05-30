@@ -4,6 +4,7 @@ import {
   getDocs,
   setDoc,
   updateDoc,
+  deleteDoc,
 } from "firebase/firestore";
 
 import { db } from "./config";
@@ -37,4 +38,10 @@ export async function updateStudySession(userId, sessionId, updates) {
   const sessionRef = doc(db, "users", userId, "sessions", sessionId);
 
   await updateDoc(sessionRef, updates);
+}
+
+export async function deleteStudySession(userId, sessionId) {
+  const sessionRef = doc(db, "users", userId, "sessions", sessionId);
+
+  await deleteDoc(sessionRef);
 }
