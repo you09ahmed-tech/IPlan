@@ -3,6 +3,7 @@ import { useState } from "react";
 import Sidebar from "../components/Sidebar";
 
 import { savePlan } from "../firebase/plans";
+import { saveStudySession } from "../firebase/sessions";
 
 import { auth } from "../firebase/config";
 
@@ -10,61 +11,113 @@ function AIPlanner({ setPage }) {
   const [goal, setGoal] = useState("");
   const [hours, setHours] = useState("");
   const [plan, setPlan] = useState(null);
+  const [selectedDates, setSelectedDates] = useState({});
+  const [selectedTimes, setSelectedTimes] = useState({});
+
+  function buildSessions(availableHours) {
+    const sessionCount = availableHours <= 2 ? 2 : availableHours <= 5 ? 4 : 6;
+
+    return Array.from({ length: sessionCount }, (_, index) => ({
+      title: `Session ${index + 1}`,
+      duration: "45 minutes",
+      focus:
+        index === 0
+          ? "Understand the task, define the outcome, and prepare materials."
+          : index === sessionCount - 1
+          ? "Review, improve, polish, and prepare the final version."
+          : "Complete deep focused work on the most important section.",
+      tasks: [
+        "Open all required materials",
+        "Set a clear mini-goal for this session",
+        "Work without distractions",
+        "Write down what you completed",
+        "Write what must happen next",
+      ],
+    }));
+  }
 
   async function generatePlan() {
-    if (goal.trim() === "" || hours.trim() === "") return;
+    if (goal.trim() === "" || hours.trim() === "") {
+      alert("Please enter a goal and available hours.");
+      return;
+    }
 
     const availableHours = parseInt(hours);
 
-    let sessions = [];
-
-    if (availableHours <= 2) {
-      sessions = [
-        "Session 1: Focus only on the highest-priority section",
-        "Session 2: Quick review and refinement",
-      ];
-    } else if (availableHours <= 5) {
-      sessions = [
-        "Session 1: Understand the task and requirements",
-        "Session 2: Build the main structure",
-        "Session 3: Complete core work",
-        "Session 4: Review and improve",
-      ];
-    } else {
-      sessions = [
-        "Session 1: Research and planning",
-        "Session 2: Build foundations",
-        "Session 3: Deep focused work",
-        "Session 4: Finish remaining sections",
-        "Session 5: Review and optimize",
-        "Session 6: Final polish",
-      ];
-    }
-
-    let advice = "";
-
-    if (availableHours <= 2) {
-      advice =
-        "You have limited time. Focus only on the highest-impact tasks.";
-    } else if (availableHours <= 5) {
-      advice =
-        "Balanced workload detected. Use focused sessions with short breaks.";
-    } else {
-      advice =
-        "You have strong availability. Prioritize deep work and avoid multitasking.";
-    }
+    const sessions = buildSessions(availableHours);
 
     const generatedPlan = {
       goal,
       hours: availableHours,
       summary: `Your goal is to work on: ${goal}`,
-      schedule: sessions,
-      advice,
+      sessions,
+      advice:
+        availableHours <= 2
+          ? "You have limited time. Focus only on the highest-impact tasks."
+          : availableHours <= 5
+          ? "Balanced workload detected. Use focused sessions with short breaks."
+          : "You have strong availability. Prioritize deep work and avoid multitasking.",
     };
 
     setPlan(generatedPlan);
+    setSelectedDates({});
+    setSelectedTimes({});
 
-    await savePlan(auth.currentUser.uid, generatedPlan);
+    try {
+      if (auth.currentUser) {
+        await savePlan(auth.currentUser.uid, generatedPlan);
+        console.log("Plan saved successfully.");
+      }
+    } catch (error) {
+      console.error("Error saving plan:", error);
+      alert("Plan generated, but saving the plan failed.");
+    }
+  }
+
+  async function saveSessionsToCalendar() {
+    if (!plan) {
+      alert("Generate a plan first.");
+      return;
+    }
+
+    if (!auth.currentUser) {
+      alert("You must be logged in to save sessions.");
+      return;
+    }
+
+    const hasMissingDates = plan.sessions.some(
+      (_, index) => !selectedDates[index]
+    );
+
+    if (hasMissingDates) {
+      alert("Please choose a date for every session before adding to calendar.");
+      return;
+    }
+
+    const sessionsToSave = plan.sessions.map((session, index) => ({
+      ...session,
+      goal: plan.goal,
+      date: selectedDates[index],
+      time: selectedTimes[index] || "16:00",
+      status: "planned",
+    }));
+
+    try {
+      for (const session of sessionsToSave) {
+        const savedSession = await saveStudySession(
+          auth.currentUser.uid,
+          session
+        );
+
+        console.log("Saved session:", savedSession);
+      }
+
+      alert(`${sessionsToSave.length} sessions added to your calendar.`);
+      setPage("calendar");
+    } catch (error) {
+      console.error("Error saving sessions:", error);
+      alert("Something went wrong while saving sessions. Check the console.");
+    }
   }
 
   return (
@@ -75,7 +128,8 @@ function AIPlanner({ setPage }) {
         <h1>AI Planner 🧠📅</h1>
 
         <p>
-          Turn big academic goals into realistic study sessions.
+          Turn big academic goals into detailed study sessions and schedule them
+          into your dated calendar.
         </p>
 
         <div className="quest-form" style={{ marginTop: "30px" }}>
@@ -105,24 +159,82 @@ function AIPlanner({ setPage }) {
 
               <p>{plan.summary}</p>
 
-              <p>Available time: {hours} hours</p>
-            </div>
-
-            <div className="subject-card" style={{ marginTop: "20px" }}>
-              <h2>Suggested Study Sessions</h2>
-
-              <ul>
-                {plan.schedule.map((session, index) => (
-                  <li key={index}>{session}</li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="subject-card" style={{ marginTop: "20px" }}>
-              <h2>Smart Advice</h2>
+              <p>Available time: {plan.hours} hours</p>
 
               <p>{plan.advice}</p>
             </div>
+
+            <div className="subjects-grid" style={{ marginTop: "30px" }}>
+              {plan.sessions.map((session, index) => (
+                <div className="quest-card" key={index}>
+                  <h3>{session.title}</h3>
+
+                  <p>{session.focus}</p>
+
+                  <p>Duration: {session.duration}</p>
+
+                  <label style={{ display: "block", marginTop: "12px" }}>
+                    Choose date
+                  </label>
+
+                  <input
+                    type="date"
+                    value={selectedDates[index] || ""}
+                    onChange={(e) =>
+                      setSelectedDates({
+                        ...selectedDates,
+                        [index]: e.target.value,
+                      })
+                    }
+                    style={{
+                      marginTop: "8px",
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: "10px",
+                    }}
+                  />
+
+                  <label style={{ display: "block", marginTop: "12px" }}>
+                    Choose time
+                  </label>
+
+                  <input
+                    type="time"
+                    value={selectedTimes[index] || "16:00"}
+                    onChange={(e) =>
+                      setSelectedTimes({
+                        ...selectedTimes,
+                        [index]: e.target.value,
+                      })
+                    }
+                    style={{
+                      marginTop: "8px",
+                      width: "100%",
+                      padding: "10px",
+                      borderRadius: "10px",
+                    }}
+                  />
+
+                  <h4 style={{ marginTop: "15px" }}>
+                    What to do
+                  </h4>
+
+                  <ul>
+                    {session.tasks.map((task, taskIndex) => (
+                      <li key={taskIndex}>{task}</li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="back-btn"
+              style={{ marginTop: "30px" }}
+              onClick={saveSessionsToCalendar}
+            >
+              Add Sessions to Calendar
+            </button>
           </>
         )}
       </main>
