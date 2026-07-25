@@ -2,34 +2,56 @@ function DailyGoals({ completedQuests, focusMinutes }) {
   const questGoal = 3;
   const focusGoal = 60;
 
-  const questProgress = Math.min((completedQuests / questGoal) * 100, 100);
-  const focusProgress = Math.min((focusMinutes / focusGoal) * 100, 100);
+  const safeCompletedQuests = Number(completedQuests) || 0;
+  const safeFocusMinutes = Number(focusMinutes) || 0;
+
+  const questExceeded = safeCompletedQuests > questGoal;
+  const focusExceeded = safeFocusMinutes > focusGoal;
+
+  const questProgress = Math.min((safeCompletedQuests / questGoal) * 100, 100);
+  const focusProgress = Math.min((safeFocusMinutes / focusGoal) * 100, 100);
 
   return (
-    <div className="subject-card">
-      <h2>Daily Goals 🎯</h2>
+    <div className="subject-card daily-goals-card">
+      <h2>Daily Goals</h2>
 
-      <p>Complete quests and focus time to stay consistent.</p>
+      <p>Today's progress toward your quest and focus targets.</p>
 
-      <div style={{ marginTop: "20px" }}>
-        <strong>Quests Completed</strong>
-        <p>
-          {completedQuests} / {questGoal}
+      <div className="daily-goal-row">
+        <div className="daily-goal-row-header">
+          <strong>Quests completed today</strong>
+
+          {questExceeded && (
+            <span className="goal-exceeded-badge">Goal exceeded</span>
+          )}
+        </div>
+
+        <p className="daily-goal-value">
+          {safeCompletedQuests}
+          <span>/ {questGoal} goal</span>
         </p>
 
         <div className="small-bar">
-          <div style={{ width: `${questProgress}%` }}></div>
+          <div style={{ width: `${questProgress}%` }} />
         </div>
       </div>
 
-      <div style={{ marginTop: "20px" }}>
-        <strong>Focus Minutes</strong>
-        <p>
-          {focusMinutes} / {focusGoal} minutes
+      <div className="daily-goal-row">
+        <div className="daily-goal-row-header">
+          <strong>Focus minutes today</strong>
+
+          {focusExceeded && (
+            <span className="goal-exceeded-badge">Goal exceeded</span>
+          )}
+        </div>
+
+        <p className="daily-goal-value">
+          {safeFocusMinutes}
+          <span>/ {focusGoal} min goal</span>
         </p>
 
         <div className="small-bar">
-          <div style={{ width: `${focusProgress}%` }}></div>
+          <div style={{ width: `${focusProgress}%` }} />
         </div>
       </div>
     </div>

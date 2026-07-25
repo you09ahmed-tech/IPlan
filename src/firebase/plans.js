@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDocs,
   setDoc,
@@ -26,4 +27,9 @@ export async function loadPlans(userId) {
   const snapshot = await getDocs(plansRef);
 
   return snapshot.docs.map((doc) => doc.data());
+}
+
+export async function deletePlan(userId, planId) {
+  const planRef = doc(db, "users", userId, "plans", planId);
+  await deleteDoc(planRef);
 }

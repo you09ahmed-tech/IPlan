@@ -19,7 +19,6 @@ function LevelCard({ xp, streak }) {
       <div className="stats">
         <span>⭐ Total XP: {xp}</span>
         <span>🔥 Streak: {streak} days</span>
-        <span>🛡️ Integrity: 92%</span>
       </div>
     </div>
   );
