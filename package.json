@@ -7,13 +7,26 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:scheduler": "node tests/scheduler/run.mjs",
+    "test:support": "node tests/support/run.mjs",
+    "test:aiUsage": "node tests/aiUsage/run.mjs",
+    "test:aiUsageAggregation": "node tests/aiUsageAggregation/run.mjs",
+    "report:aiUsage": "node --env-file-if-exists=.env.local scripts/aiUsageReport.mjs"
   },
   "dependencies": {
     "firebase": "^12.13.0",
+    "firebase-admin": "^14.2.0",
     "openai": "^6.44.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "resend": "^6.20.0",
+    "zod": "^4.4.3"
+  },
+  "overrides": {
+    "jwks-rsa": {
+      "jose": "5.10.0"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
